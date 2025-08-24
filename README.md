@@ -164,8 +164,6 @@ npm run serve:discovery
 ### Planned Features
 - **Multi-source Data Import**: Support for importing content from YouTube, Vimeo, and other platforms
 - **Advanced Analytics**: Content performance tracking and user behavior analysis
-- **Content Recommendations**: AI-powered content suggestions
-- **Multi-tenant Support**: Support for multiple organizations
 - **API Rate Limiting**: Enhanced API protection and monitoring
 
 ### Scalability Considerations
@@ -193,6 +191,6 @@ For support and questions:
 
 ## 📚 Documentation
 
-- **[Backend README](backend/README.md)**: Detailed backend setup and API documentation
+
 - **[Frontend README](frontend/README.md)**: Frontend setup and development guide
 - **[API Documentation](http://localhost:3000/api/docs)**: Swagger UI (when backend is running)
