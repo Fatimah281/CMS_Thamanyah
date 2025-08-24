@@ -1,0 +1,252 @@
+<div class="home-container">
+
+  <mat-toolbar color="primary" class="home-header">
+    <span class="header-title">
+      <mat-icon>explore</mat-icon>
+      Thamanyah Discovery
+    </span>
+    <span class="spacer"></span>
+    
+    
+    
+    <div class="user-section" *ngIf="user$ | async as user">
+      <div class="user-info">
+        <span class="user-name">{{ getUserDisplayName(user) }}</span>
+      </div>
+      <button mat-icon-button [matMenuTriggerFor]="userMenu" class="user-avatar">
+        <mat-icon *ngIf="!user.photoURL">account_circle</mat-icon>
+        <img *ngIf="user.photoURL" [src]="user.photoURL" [alt]="getUserDisplayName(user)" class="user-photo">
+      </button>
+      <mat-menu #userMenu="matMenu">
+        <div class="user-menu-header">
+          <div class="user-menu-info">
+            <span class="user-menu-name">{{ getUserDisplayName(user) }}</span>
+            <span class="user-menu-email">{{ user.email }}</span>
+          </div>
+        </div>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="signOut()">
+          <mat-icon>logout</mat-icon>
+          <span>Sign Out</span>
+        </button>
+      </mat-menu>
+    </div>
+    
+    <div class="auth-buttons" *ngIf="!(user$ | async)">
+      <button 
+        mat-button 
+        color="accent" 
+        (click)="goToLogin()"
+        class="auth-btn">
+        <mat-icon>login</mat-icon>
+        Sign In
+      </button>
+      <button 
+        mat-raised-button 
+        color="primary" 
+        (click)="goToRegister()"
+        class="auth-btn">
+        <mat-icon>person_add</mat-icon>
+        Sign Up
+      </button>
+    </div>
+  </mat-toolbar>
+
+  <div class="home-content">
+    <div class="welcome-section" *ngIf="!(user$ | async)">
+      <mat-card class="welcome-card">
+        <mat-card-content>
+          <div class="welcome-content">
+            <mat-icon class="welcome-icon">explore</mat-icon>
+            <h2>Welcome to Thamanyah Discovery</h2>
+            <p>Explore our collection of educational content, videos, and podcasts. Sign in to get a personalized experience and track your progress.</p>
+            <div class="welcome-actions">
+              <button mat-raised-button color="primary" (click)="goToLogin()" class="welcome-btn">
+                <mat-icon>login</mat-icon>
+                Sign In
+              </button>
+              <button mat-button color="accent" (click)="goToRegister()" class="welcome-btn">
+                <mat-icon>person_add</mat-icon>
+                Sign Up
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="welcome-section" *ngIf="user$ | async as user">
+      <mat-card class="welcome-card authenticated">
+        <mat-card-content>
+          <div class="welcome-content">
+            <mat-icon class="welcome-icon">person</mat-icon>
+            <h2>Welcome back, {{ getUserDisplayName(user) }}!</h2>
+            <p>Continue exploring our collection of educational content. Use the filters below to find exactly what you're looking for.</p>
+
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="filters-section">
+      <mat-card class="filters-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>search</mat-icon>
+            Search & Filter
+          </mat-card-title>
+          <mat-card-subtitle>Find the content you're looking for</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="filters-grid">
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-label>Search Programs</mat-label>
+              <input matInput [formControl]="searchControl" placeholder="Search by title or description">
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Category</mat-label>
+              <mat-select [formControl]="categoryFilter">
+                <mat-option value="">All Categories</mat-option>
+                <mat-option *ngFor="let category of categories$ | async" [value]="category.id">
+                  {{ category.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Language</mat-label>
+              <mat-select [formControl]="languageFilter">
+                <mat-option value="">All Languages</mat-option>
+                <mat-option *ngFor="let language of languages$ | async" [value]="language.id">
+                  {{ language.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Status</mat-label>
+              <mat-select [formControl]="statusFilter">
+                <mat-option value="">All Status</mat-option>
+                <mat-option value="published">Published</mat-option>
+                <mat-option value="draft">Draft</mat-option>
+                <mat-option value="archived">Archived</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Content Type</mat-label>
+              <mat-select [formControl]="contentTypeFilter">
+                <mat-option value="">All Types</mat-option>
+                <mat-option value="video">Video</mat-option>
+                <mat-option value="podcast">Podcast</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Publish Date</mat-label>
+              <input matInput [matDatepicker]="picker" [formControl]="dateFilter">
+              <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+
+            <button mat-stroked-button (click)="clearFilters()" class="clear-filters-btn">
+              <mat-icon>clear</mat-icon>
+              Clear Filters
+            </button>
+          </div>
+
+          <div class="active-filters" *ngIf="hasActiveFilters()">
+            <h4>Active Filters:</h4>
+            <div class="filter-chips">
+              <mat-chip *ngIf="searchControl.value" color="primary" (removed)="searchControl.setValue('')">
+                Search: "{{ searchControl.value }}"
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+              <mat-chip *ngIf="categoryFilter.value" color="accent" (removed)="categoryFilter.setValue('')">
+                Category: {{ categoryFilter.value }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+              <mat-chip *ngIf="languageFilter.value" color="warn" (removed)="languageFilter.setValue('')">
+                Language: {{ languageFilter.value }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+              <mat-chip *ngIf="statusFilter.value" color="primary" (removed)="statusFilter.setValue('')">
+                Status: {{ statusFilter.value }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+              <mat-chip *ngIf="contentTypeFilter.value" color="accent" (removed)="contentTypeFilter.setValue('')">
+                Type: {{ contentTypeFilter.value }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+              <mat-chip *ngIf="dateFilter.value" color="warn" (removed)="dateFilter.setValue('')">
+                Date: {{ dateFilter.value | date:'shortDate' }}
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="loading-container" *ngIf="loading">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Loading programs...</p>
+    </div>
+
+    <div class="programs-section">
+      <div class="programs-grid" *ngIf="!loading && (programs$ | async) as programs">
+        <mat-card class="program-card" *ngFor="let program of programs" (click)="viewProgram(program)">
+          <div class="thumbnail-container" *ngIf="program.youtubeThumbnail">
+            <img [src]="program.youtubeThumbnail" [alt]="program.title" class="program-thumbnail">
+            <div class="thumbnail-overlay">
+              <button mat-icon-button color="white" matTooltip="View Details">
+                <mat-icon>play_arrow</mat-icon>
+              </button>
+            </div>
+            <div class="duration-badge" *ngIf="program.duration">
+              {{ formatDuration(program.duration) }}
+            </div>
+          </div>
+          
+          <mat-card-content>
+            <h3 class="program-title">{{ program.title }}</h3>
+            <p class="program-description">{{ program.description | slice:0:120 }}{{ program.description.length > 120 ? '...' : '' }}</p>
+            
+            <div class="program-meta">
+              <mat-chip color="primary">{{ program.category?.name || program.categoryId }}</mat-chip>
+              <mat-chip color="accent">{{ program.language?.name || program.languageId }}</mat-chip>
+              <span class="duration">
+                <mat-icon>schedule</mat-icon>
+                {{ formatDuration(program.duration) }}
+              </span>
+            </div>
+            
+            <div class="program-date">
+              <mat-icon>event</mat-icon>
+              {{ formatDate(program.publishDate) }}
+            </div>
+          </mat-card-content>
+          
+          <mat-card-actions>
+            <button mat-button color="primary">
+              <mat-icon>play_arrow</mat-icon>
+              View Details
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      <div class="empty-state" *ngIf="!loading && (programs$ | async)?.length === 0">
+        <mat-icon>video_library</mat-icon>
+        <h3>No programs found</h3>
+        <p>Try adjusting your search criteria or filters</p>
+        <button mat-raised-button color="primary" (click)="clearFilters()">
+          <mat-icon>clear</mat-icon>
+          Clear All Filters
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,516 @@
+<div class="detail-container">
+  <mat-toolbar color="primary" class="detail-header">
+    <button mat-icon-button (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span class="header-title">Program Details</span>
+    <span class="spacer"></span>
+    <button mat-button routerLink="/">
+      <mat-icon>home</mat-icon>
+      Home
+    </button>
+  </mat-toolbar>
+
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading program details...</p>
+  </div>
+
+  <div class="error-container" *ngIf="error">
+    <mat-icon color="warn">error</mat-icon>
+    <h3>Error loading program</h3>
+    <p>Please try again later</p>
+    <button mat-raised-button color="primary" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+      Go Back
+    </button>
+  </div>
+
+  <div class="detail-content" *ngIf="!loading && !error && (program$ | async) as program">
+    <div class="program-hero">
+      <mat-card class="hero-card">
+        <mat-card-content>
+          <div class="hero-content">
+            <div class="program-info">
+              <h1 class="program-title">{{ program.title }}</h1>
+              <p class="program-description">{{ program.description }}</p>
+              
+              <div class="program-meta">
+                <mat-chip color="primary">{{ program.category?.name || program.categoryId }}</mat-chip>
+                <mat-chip color="accent">{{ program.language?.name || program.languageId }}</mat-chip>
+                <span class="duration">
+                  <mat-icon>schedule</mat-icon>
+                  {{ formatDuration(program.duration) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="content-player-section" *ngIf="hasContent || contentError">
+      <mat-card class="player-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>{{ getContentTypeIcon() }}</mat-icon>
+            {{ program.contentType === 'video' ? 'Video Player' : 'Audio Player' }}
+          </mat-card-title>
+          <mat-card-subtitle>
+            {{ program.contentType === 'video' ? 'Watch the video content' : 'Listen to the audio content' }}
+          </mat-card-subtitle>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <div class="content-error" *ngIf="contentError">
+            <mat-icon color="warn">error_outline</mat-icon>
+            <h3>Content Unavailable</h3>
+            <p>{{ contentErrorMessage }}</p>
+            <button mat-raised-button color="primary" (click)="retryContent()">
+              <mat-icon>refresh</mat-icon>
+              Retry
+            </button>
+          </div>
+
+          <div class="video-content" *ngIf="!contentError && program.contentType === 'video'">
+            <div class="youtube-player" *ngIf="youtubeEmbedUrl">
+              <div class="player-container">
+                <iframe 
+                  [src]="youtubeEmbedUrl" 
+                  width="100%" 
+                  height="400" 
+                  frameborder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen
+                  class="youtube-iframe">
+                </iframe>
+              </div>
+              <div class="player-info">
+                <p><strong>Source:</strong> YouTube</p>
+                <p><strong>Quality:</strong> Auto (adjustable)</p>
+              </div>
+            </div>
+
+            <div class="html5-video-player" *ngIf="videoUrl && !youtubeEmbedUrl">
+              <div class="player-container">
+                <video 
+                  [src]="videoUrl" 
+                  controls 
+                  preload="metadata"
+                  width="100%"
+                  height="400"
+                  (error)="onVideoError()"
+                  class="video-element">
+                  <p>Your browser does not support the video tag.</p>
+                </video>
+              </div>
+              <div class="player-info">
+                <p><strong>Source:</strong> Direct Media File</p>
+                <p><strong>Format:</strong> {{ getVideoFormat(program.videoUrl) }}</p>
+              </div>              
+            </div>
+
+            <div class="video-source-info" *ngIf="program.videoUrl || program.youtubeUrl || program.uploadedVideoUrl">
+              <mat-divider></mat-divider>
+              <div class="source-details">
+                <h4>Video Sources</h4>
+                <div class="source-links">
+                  <a *ngIf="program.videoUrl" 
+                     [href]="program.videoUrl" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     class="source-link">
+                    <mat-icon>play_circle</mat-icon>
+                    <span>Direct Video Link</span>
+                  </a>
+                  <a *ngIf="program.youtubeUrl" 
+                     [href]="program.youtubeUrl" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     class="source-link">
+                    <mat-icon>youtube</mat-icon>
+                    <span>YouTube Original</span>
+                  </a>
+                  <a *ngIf="program.uploadedVideoUrl" 
+                     [href]="program.uploadedVideoUrl" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     class="source-link">
+                    <mat-icon>cloud_download</mat-icon>
+                    <span>Download Video</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="audio-content" *ngIf="!contentError && program.contentType === 'podcast'">
+            <div class="audio-player" *ngIf="audioUrl">
+              <div class="player-container">
+                <audio 
+                  [src]="audioUrl" 
+                  controls 
+                  preload="metadata"
+                  class="audio-element"
+                  (error)="onAudioError()">
+                  <p>Your browser does not support the audio tag.</p>
+                </audio>
+              </div>
+              
+              <div class="audio-info">
+                <p><strong>Duration:</strong> {{ formatDuration(program.duration) }}</p>
+                <p><strong>Type:</strong> {{ program.contentType | titlecase }}</p>
+                <p><strong>Format:</strong> {{ getAudioFormat(program.audioUrl) }}</p>
+              </div>
+              
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="program-details">
+      <mat-card class="details-card">
+        <mat-tab-group>
+          <mat-tab label="Basic Information">
+            <div class="tab-content">
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Program ID</span>
+                  <span class="detail-value">{{ program.id }}</span>
+                </div>
+
+                <div class="detail-item">
+                  <span class="detail-label">Title</span>
+                  <span class="detail-value">{{ program.title }}</span>
+                </div>
+                
+                <div class="detail-item">
+                  <span class="detail-label">Category</span>
+                  <span class="detail-value">
+                    <mat-chip color="primary">
+                      {{ program.category?.name || program.categoryId }}
+                    </mat-chip>
+                  </span>
+                </div>
+                
+                <div class="detail-item">
+                  <span class="detail-label">Language</span>
+                  <span class="detail-value">
+                    <mat-chip color="accent">
+                      {{ program.language?.name || program.languageId }}
+                      <span *ngIf="program.language?.code">
+                        ({{ program.language?.code }})
+                      </span>
+                   </mat-chip>
+                  </span>
+                </div>
+                
+                <div class="detail-item">
+                  <span class="detail-label">Duration</span>
+                  <span class="detail-value">
+                    <mat-icon>schedule</mat-icon>
+                    {{ formatDuration(program.duration) }}
+                  </span>
+                </div>
+                
+                <div class="detail-item">
+                  <span class="detail-label">Publish Date</span>
+                  <span class="detail-value">
+                    <mat-icon>event</mat-icon>
+                    {{ formatDate(program.publishDate) }}
+                  </span>
+                </div>
+
+                <div class="detail-item">
+                  <span class="detail-label">Content Type</span>
+                  <span class="detail-value">
+                    <mat-chip [color]="program.contentType === 'video' ? 'primary' : 'accent'">
+                      <mat-icon>{{ program.contentType === 'video' ? 'video_library' : 'audiotrack' }}</mat-icon>
+                      {{ program.contentType | titlecase }}
+                    </mat-chip>
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.videoSource">
+                  <span class="detail-label">Video Source</span>
+                  <span class="detail-value">
+                    <mat-chip color="warn">
+                      <mat-icon>source</mat-icon>
+                      {{ program.videoSource | titlecase }}
+                    </mat-chip>
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.videoType">
+                  <span class="detail-label">Video Type</span>
+                  <span class="detail-value">
+                    <mat-chip>
+                      <mat-icon>category</mat-icon>
+                      {{ program.videoType | titlecase }}
+                    </mat-chip>
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.status">
+                  <span class="detail-label">Status</span>
+                  <span class="detail-value">
+                    <mat-chip [color]="getStatusColor(program.status)">
+                      <mat-icon>{{ getStatusIcon(program.status) }}</mat-icon>
+                      {{ program.status | titlecase }}
+                    </mat-chip>
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.isActive !== undefined">
+                  <span class="detail-label">Active</span>
+                  <span class="detail-value">
+                    <mat-icon [color]="program.isActive ? 'primary' : 'warn'">
+                      {{ program.isActive ? 'check_circle' : 'cancel' }}
+                    </mat-icon>
+                    {{ program.isActive ? 'Yes' : 'No' }}
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.createdBy">
+                  <span class="detail-label">Created By</span>
+                  <span class="detail-value">
+                    <mat-icon>person</mat-icon>
+                    {{ typeof program.createdBy === 'string' ? program.createdBy : program.createdBy.username }}
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.createdAt">
+                  <span class="detail-label">Created At</span>
+                  <span class="detail-value">
+                    <mat-icon>schedule</mat-icon>
+                    {{ formatDateTime(program.createdAt) }}
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.updatedAt">
+                  <span class="detail-label">Last Updated</span>
+                  <span class="detail-value">
+                    <mat-icon>update</mat-icon>
+                    {{ formatDateTime(program.updatedAt) }}
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.thumbnailUrl">
+                  <span class="detail-label">Thumbnail</span>
+                  <span class="detail-value">
+                    <img [src]="program.thumbnailUrl" alt="Program thumbnail" class="thumbnail-preview">
+                    <a [href]="program.thumbnailUrl" target="_blank" rel="noopener noreferrer" class="thumbnail-link">
+                      <mat-icon>open_in_new</mat-icon>
+                      View Full Size
+                    </a>
+                  </span>
+                </div>
+
+                <div class="detail-item" *ngIf="program.youtubeThumbnail">
+                  <span class="detail-label">YouTube Thumbnail</span>
+                  <span class="detail-value">
+                    <img [src]="program.youtubeThumbnail" alt="YouTube thumbnail" class="thumbnail-preview">
+                    <a [href]="program.youtubeThumbnail" target="_blank" rel="noopener noreferrer" class="thumbnail-link">
+                      <mat-icon>open_in_new</mat-icon>
+                      View Full Size
+                    </a>
+                  </span>
+                </div>
+                
+                <div class="detail-item full-width">
+                  <span class="detail-label">Description</span>
+                  <span class="detail-value">{{ program.description }}</span>
+                </div>
+
+                <div class="detail-item full-width" *ngIf="program.tags && program.tags.length > 0">
+                  <span class="detail-label">Tags</span>
+                  <span class="detail-value">
+                    <mat-chip *ngFor="let tag of program.tags" class="tag-chip">
+                      <mat-icon>label</mat-icon>
+                      {{ tag }}
+                    </mat-chip>
+                  </span>
+                </div>
+
+                <div class="detail-item full-width" *ngIf="program.metadata && program.metadata.length > 0">
+                  <span class="detail-label">Metadata</span>
+                  <span class="detail-value">
+                    <div class="metadata-grid">
+                      <div class="metadata-item" *ngFor="let item of program.metadata">
+                        <mat-chip class="metadata-chip">
+                          <mat-icon>info</mat-icon>
+                          <strong>{{ item.key }}:</strong> {{ item.value }}
+                        </mat-chip>
+                      </div>
+                    </div>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+
+          <mat-tab label="Content Details" *ngIf="hasContent">
+            <div class="tab-content">
+              <div class="content-details">
+                <div *ngIf="program.contentType === 'video'">
+                  <h3>Video Information</h3>
+                  <div class="detail-item" *ngIf="program.youtubeVideoId">
+                    <span class="detail-label">YouTube Video ID</span>
+                    <span class="detail-value">
+                      <mat-chip color="warn">
+                        <mat-icon>youtube</mat-icon>
+                        {{ program.youtubeVideoId }}
+                      </mat-chip>
+                    </span>
+                  </div>
+                  
+                  <div class="detail-item" *ngIf="program.youtubeUrl">
+                    <span class="detail-label">YouTube URL</span>
+                    <span class="detail-value">
+                      <a [href]="program.youtubeUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        <mat-icon>youtube</mat-icon>
+                        {{ program.youtubeUrl }}
+                      </a>
+                    </span>
+                  </div>
+
+                  <div class="detail-item" *ngIf="program.videoUrl">
+                    <span class="detail-label">Video URL</span>
+                    <span class="detail-value">
+                      <a [href]="program.videoUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        <mat-icon>play_circle</mat-icon>
+                        {{ program.videoUrl }}
+                      </a>
+                    </span>
+                  </div>
+
+                  <div class="detail-item" *ngIf="program.uploadedVideoUrl">
+                    <span class="detail-label">Uploaded Video</span>
+                    <span class="detail-value">
+                      <a [href]="program.uploadedVideoUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        <mat-icon>cloud_download</mat-icon>
+                        View Video
+                      </a>
+                    </span>
+                  </div>
+
+                  <div class="detail-item" *ngIf="program.fileName">
+                    <span class="detail-label">File Name</span>
+                    <span class="detail-value">
+                      <mat-icon>description</mat-icon>
+                      {{ program.fileName }}
+                    </span>
+                  </div>
+
+                  <div class="detail-item" *ngIf="program.fileSize">
+                    <span class="detail-label">File Size</span>
+                    <span class="detail-value">
+                      <mat-icon>storage</mat-icon>
+                      {{ (program.fileSize / 1024 / 1024).toFixed(2) }} MB
+                    </span>
+                  </div>
+                </div>
+
+                <div *ngIf="program.contentType === 'podcast'">
+                  <h3>Audio Information</h3>
+                  <div class="detail-item" *ngIf="program.audioUrl">
+                    <span class="detail-label">Audio URL</span>
+                    <span class="detail-value">
+                      <a [href]="program.audioUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        <mat-icon>audiotrack</mat-icon>
+                        {{ program.audioUrl }}
+                      </a>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+
+          <mat-tab label="Statistics & Analytics">
+            <div class="tab-content">
+              <div class="statistics-details">
+                <div class="stat-section" *ngIf="program.viewCount || program.likeCount">
+                  <h3>Engagement Statistics</h3>
+                  <div class="stats-grid">
+                    <div class="stat-card" *ngIf="program.viewCount">
+                      <mat-icon class="stat-icon">visibility</mat-icon>
+                      <div class="stat-content">
+                        <span class="stat-value">{{ program.viewCount.toLocaleString() }}</span>
+                        <span class="stat-label">Total Views</span>
+                      </div>
+                    </div>
+                    
+                    <div class="stat-card" *ngIf="program.likeCount">
+                      <mat-icon class="stat-icon">thumb_up</mat-icon>
+                      <div class="stat-content">
+                        <span class="stat-value">{{ program.likeCount.toLocaleString() }}</span>
+                        <span class="stat-label">Total Likes</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="stat-section" *ngIf="program.fileSize || program.fileName">
+                  <h3>File Information</h3>
+                  <div class="details-grid">
+                    <div class="detail-item" *ngIf="program.fileName">
+                      <span class="detail-label">File Name</span>
+                      <span class="detail-value">
+                        <mat-icon>description</mat-icon>
+                        {{ program.fileName }}
+                      </span>
+                    </div>
+                    
+                    <div class="detail-item" *ngIf="program.fileSize">
+                      <span class="detail-label">File Size</span>
+                      <span class="detail-value">
+                        <mat-icon>storage</mat-icon>
+                        {{ (program.fileSize / 1024 / 1024).toFixed(2) }} MB
+                        <span class="file-size-detail">({{ program.fileSize.toLocaleString() }} bytes)</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="stat-section" *ngIf="program.videoUrl || program.youtubeUrl || program.uploadedVideoUrl || program.audioUrl">
+                  <h3>Content URLs</h3>
+                  <div class="url-list">
+                    <div class="url-item" *ngIf="program.videoUrl">
+                      <mat-icon>play_circle</mat-icon>
+                      <a [href]="program.videoUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        Direct Video Link
+                      </a>
+                    </div>
+                    
+                    <div class="url-item" *ngIf="program.youtubeUrl">
+                      <mat-icon>youtube</mat-icon>
+                      <a [href]="program.youtubeUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        YouTube Original
+                      </a>
+                    </div>
+                    
+                    <div class="url-item" *ngIf="program.uploadedVideoUrl">
+                      <mat-icon>cloud_download</mat-icon>
+                      <a [href]="program.uploadedVideoUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        Uploaded Video
+                      </a>
+                    </div>
+                    
+                    <div class="url-item" *ngIf="program.audioUrl">
+                      <mat-icon>audiotrack</mat-icon>
+                      <a [href]="program.audioUrl" target="_blank" rel="noopener noreferrer" class="content-link">
+                        Audio File
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card>
+    </div>
+  </div>
+</div>

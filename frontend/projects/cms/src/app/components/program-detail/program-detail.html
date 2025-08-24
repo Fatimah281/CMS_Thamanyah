@@ -1,0 +1,210 @@
+<div class="program-detail-container">
+  <mat-toolbar color="primary" class="detail-header">
+    <button mat-icon-button (click)="goBack()" class="back-button">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span class="header-title">Program Details</span>
+    <span class="spacer"></span>
+    <button mat-raised-button color="accent" (click)="editProgram()">
+      <mat-icon>edit</mat-icon>
+      Edit Program
+    </button>
+  </mat-toolbar>
+
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading program details...</p>
+  </div>
+
+  <div class="error-container" *ngIf="error">
+    <mat-icon color="warn">error</mat-icon>
+    <h3>Error loading program</h3>
+    <p>Please try again later</p>
+    <button mat-raised-button color="primary" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+      Go Back
+    </button>
+  </div>
+
+  <div class="program-content" *ngIf="!loading && !error && (program$ | async) as program">
+    <div class="content-layout">
+      <div class="main-content">
+        <mat-card class="content-player-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>{{ getContentTypeIcon() }}</mat-icon>
+              {{ program.contentType === 'video' ? 'Video Player' : 'Audio Player' }}
+            </mat-card-title>
+          </mat-card-header>
+          
+          <mat-card-content class="player-content">
+            <div *ngIf="youtubeEmbedUrl && hasContent" class="youtube-player">
+              <iframe 
+                [src]="youtubeEmbedUrl" 
+                width="100%" 
+                height="400" 
+                frameborder="0" 
+                allowfullscreen>
+              </iframe>
+            </div>
+
+            <div *ngIf="videoUrl && hasContent && !youtubeEmbedUrl" class="video-player">
+              <video 
+                [src]="videoUrl" 
+                controls 
+                width="100%" 
+                height="400"
+                (error)="onVideoError()">
+                Your browser does not support the video tag.
+              </video>
+            </div>
+
+            <div *ngIf="audioUrl && hasContent" class="audio-player">
+              <audio 
+                [src]="audioUrl" 
+                controls 
+                style="width: 100%"
+                (error)="onAudioError()">
+                Your browser does not support the audio tag.
+              </audio>
+            </div>
+
+            <div *ngIf="contentError" class="content-error">
+              <mat-icon color="warn">error</mat-icon>
+              <h4>Content Error</h4>
+              <p>{{ contentErrorMessage }}</p>
+              <button mat-raised-button color="primary" (click)="retryContent()">
+                <mat-icon>refresh</mat-icon>
+                Retry
+              </button>
+            </div>
+
+            <div *ngIf="!hasContent && !contentError" class="no-content">
+              <mat-icon>play_circle_outline</mat-icon>
+              <h4>No Content Available</h4>
+              <p>This program doesn't have any playable content.</p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="program-info-card">
+          <mat-card-header>
+            <mat-card-title>{{ program.title }}</mat-card-title>
+            <mat-card-subtitle>
+              <mat-chip [color]="getStatusColor(program.status || 'draft')" selected>
+                <mat-icon>{{ getStatusIcon(program.status || 'draft') }}</mat-icon>
+                {{ program.status || 'Draft' }}
+              </mat-chip>
+            </mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="program-meta">
+              <div class="meta-item">
+                <mat-icon>schedule</mat-icon>
+                <span>Duration: {{ formatDuration(program.duration) }}</span>
+              </div>
+              <div class="meta-item">
+                <mat-icon>calendar_today</mat-icon>
+                <span>Published: {{ formatDate(program.publishDate) }}</span>
+              </div>
+              <div class="meta-item" *ngIf="program.viewCount">
+                <mat-icon>visibility</mat-icon>
+                <span>Views: {{ program.viewCount | number }}</span>
+              </div>
+              <div class="meta-item" *ngIf="program.likeCount">
+                <mat-icon>thumb_up</mat-icon>
+                <span>Likes: {{ program.likeCount | number }}</span>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="program-description">
+              <h4>Description</h4>
+              <p>{{ program.description }}</p>
+            </div>
+
+            <div class="program-tags" *ngIf="program.tags && program.tags.length > 0">
+              <h4>Tags</h4>
+              <div class="tags-container">
+                <mat-chip *ngFor="let tag of program.tags" size="small">
+                  {{ tag }}
+                </mat-chip>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <div class="sidebar">
+        <mat-card class="details-card">
+          <mat-card-header>
+            <mat-card-title>Program Details</mat-card-title>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="detail-item">
+              <label>Content Type:</label>
+              <span>{{ program.contentType }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <label>Video Source:</label>
+              <span>{{ program.videoSource }}</span>
+            </div>
+            
+            <div class="detail-item" *ngIf="program.category">
+              <label>Category:</label>
+              <span>{{ program.category.name }}</span>
+            </div>
+            
+            <div class="detail-item" *ngIf="program.language">
+              <label>Language:</label>
+              <span>{{ program.language.name }}</span>
+            </div>
+            
+            <div class="detail-item" *ngIf="program.videoType">
+              <label>Video Type:</label>
+              <span>{{ program.videoType }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <label>Active:</label>
+              <span>{{ program.isActive ? 'Yes' : 'No' }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="urls-card" *ngIf="program.videoUrl || program.audioUrl || program.thumbnailUrl">
+          <mat-card-header>
+            <mat-card-title>Media URLs</mat-card-title>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="url-item" *ngIf="program.videoUrl">
+              <label>Video URL:</label>
+              <a [href]="program.videoUrl" target="_blank" class="url-link">
+                {{ program.videoUrl }}
+              </a>
+            </div>
+            
+            <div class="url-item" *ngIf="program.audioUrl">
+              <label>Audio URL:</label>
+              <a [href]="program.audioUrl" target="_blank" class="url-link">
+                {{ program.audioUrl }}
+              </a>
+            </div>
+            
+            <div class="url-item" *ngIf="program.thumbnailUrl">
+              <label>Thumbnail URL:</label>
+              <a [href]="program.thumbnailUrl" target="_blank" class="url-link">
+                {{ program.thumbnailUrl }}
+              </a>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</div>

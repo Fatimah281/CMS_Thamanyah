@@ -1,0 +1,253 @@
+<div class="program-form-container">
+  <mat-card class="program-form-card">
+    <mat-card-header>
+      <mat-card-title>{{ isEditMode ? 'Edit Program' : 'Add New Program' }}</mat-card-title>
+      <mat-card-subtitle>Create or update a program with video content</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="programForm" (ngSubmit)="onSubmit()" class="program-form">
+        <div class="form-section">
+          <h3>Basic Information <span class="required-indicator">* Required</span></h3>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Title *</mat-label>
+            <input matInput formControlName="title" placeholder="Enter program title">
+            <mat-error *ngIf="programForm.get('title')?.hasError('required')">
+              Title is required
+            </mat-error>
+            <mat-error *ngIf="programForm.get('title')?.hasError('minlength')">
+              Title must be at least 3 characters
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description *</mat-label>
+            <textarea matInput formControlName="description" rows="4" placeholder="Enter program description"></textarea>
+            <mat-error *ngIf="programForm.get('description')?.hasError('required')">
+              Description is required
+            </mat-error>
+            <mat-error *ngIf="programForm.get('description')?.hasError('minlength')">
+              Description must be at least 10 characters
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-section">
+          <h3>Content Type <span class="optional-indicator">(Optional)</span></h3>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Content Type</mat-label>
+            <mat-select formControlName="contentType">
+              <mat-option value="video">Video</mat-option>
+              <mat-option value="podcast">Podcast</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="form-section">
+          <h3>Video Source <span class="optional-indicator">(Optional)</span></h3>
+          
+          <div class="video-source-options">
+            <mat-radio-group formControlName="videoSource" class="video-source-group">
+              <mat-radio-button value="youtube" class="video-source-option">
+                <div class="option-content">
+                  <mat-icon>play_circle</mat-icon>
+                  <div class="option-text">
+                    <strong>YouTube Video</strong>
+                    <span>Add a YouTube video link</span>
+                  </div>
+                </div>
+              </mat-radio-button>
+              
+              <mat-radio-button value="upload" class="video-source-option">
+                <div class="option-content">
+                  <mat-icon>cloud_upload</mat-icon>
+                  <div class="option-text">
+                    <strong>Upload Video</strong>
+                    <span>Upload video file from computer</span>
+                  </div>
+                </div>
+              </mat-radio-button>
+              
+              <mat-radio-button value="external" class="video-source-option">
+                <div class="option-content">
+                  <mat-icon>link</mat-icon>
+                  <div class="option-text">
+                    <strong>External Link</strong>
+                    <span>Add external video URL</span>
+                  </div>
+                </div>
+              </mat-radio-button>
+            </mat-radio-group>
+          </div>
+
+          <div *ngIf="programForm.get('videoSource')?.value === 'youtube'" class="video-input-section">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>YouTube Video URL</mat-label>
+              <input matInput formControlName="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+              <mat-icon matSuffix>youtube</mat-icon>
+              <mat-error *ngIf="programForm.get('videoUrl')?.hasError('invalidUrl')">
+                Please enter a valid YouTube URL
+              </mat-error>
+            </mat-form-field>
+            
+            <div class="url-example">
+              <mat-icon>info</mat-icon>
+              <span>Example: https://www.youtube.com/watch?v=HCqoKjhx8_c</span>
+            </div>
+          </div>
+
+          <div *ngIf="programForm.get('videoSource')?.value === 'upload'" class="video-input-section">
+            <div class="file-upload-area" 
+                 [class.dragover]="isDragOver"
+                 (dragover)="onDragOver($event)"
+                 (dragleave)="onDragLeave($event)"
+                 (drop)="onDrop($event)">
+              
+              <input type="file" 
+                     #fileInput 
+                     (change)="onFileSelected($event)"
+                     accept="video/*"
+                     style="display: none;">
+              
+              <div class="upload-content" *ngIf="!selectedFile">
+                <mat-icon>cloud_upload</mat-icon>
+                <h4>Upload Video File</h4>
+                <p>Drag and drop your video file here, or click to browse</p>
+                <button mat-stroked-button type="button" (click)="fileInput.click()">
+                  Choose File
+                </button>
+                <div class="upload-info">
+                  <p>Supported formats: MP4, WebM, OGG, AVI, MOV</p>
+                  <p>Maximum file size: 500MB</p>
+                </div>
+              </div>
+
+              <div class="file-preview" *ngIf="selectedFile">
+                <div class="file-info">
+                  <mat-icon>video_file</mat-icon>
+                  <div class="file-details">
+                    <h4>{{ selectedFile.name }}</h4>
+                    <p>{{ formatFileSize(selectedFile.size) }}</p>
+                    <p *ngIf="videoDuration">Duration: {{ formatDuration(videoDuration) }}</p>
+                  </div>
+                </div>
+                <button mat-icon-button color="warn" (click)="removeFile()">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="programForm.get('videoSource')?.value === 'external'" class="video-input-section">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>External Video URL</mat-label>
+              <input matInput formControlName="videoUrl" placeholder="https://vimeo.com/... or https://dailymotion.com/...">
+              <mat-icon matSuffix>link</mat-icon>
+              <mat-error *ngIf="programForm.get('videoUrl')?.hasError('invalidUrl')">
+                Please enter a valid video URL
+              </mat-error>
+            </mat-form-field>
+            
+            <div class="url-example">
+              <mat-icon>info</mat-icon>
+              <span>Supported: Vimeo, Dailymotion, Facebook, Instagram</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section" *ngIf="videoPreviewUrl">
+          <h3>Video Preview</h3>
+          <div class="video-preview">
+            <video [src]="videoPreviewUrl" controls class="preview-video"></video>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Program Details</h3>
+          
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Category</mat-label>
+              <mat-select formControlName="categoryId">
+                <mat-option value="">Select Category</mat-option>
+                <mat-option *ngFor="let category of categories$ | async" [value]="category.id">
+                  {{ category.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Language</mat-label>
+              <mat-select formControlName="languageId">
+                <mat-option value="">Select Language</mat-option>
+                <mat-option *ngFor="let language of languages$ | async" [value]="language.id">
+                  {{ language.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Duration (minutes)</mat-label>
+              <input matInput type="number" formControlName="duration" min="1">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Publish Date</mat-label>
+              <input matInput [matDatepicker]="picker" formControlName="publishDate">
+              <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Audio URL</mat-label>
+              <input matInput formControlName="audioUrl" placeholder="https://example.com/audio.mp3">
+              <mat-icon matSuffix>audiotrack</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Thumbnail URL</mat-label>
+              <input matInput formControlName="thumbnailUrl" placeholder="https://example.com/thumb.jpg">
+              <mat-icon matSuffix>image</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Status</mat-label>
+              <mat-select formControlName="status">
+                <mat-option value="draft">Draft</mat-option>
+                <mat-option value="published">Published</mat-option>
+                <mat-option value="archived">Archived</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Active Status</mat-label>
+              <mat-select formControlName="isActive">
+                <mat-option [value]="true">Active</mat-option>
+                <mat-option [value]="false">Inactive</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button mat-button type="button" (click)="onCancel()" [disabled]="loading">
+            Cancel
+          </button>
+          <button mat-raised-button color="primary" type="submit" [disabled]="programForm.invalid || loading">
+            <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!loading">{{ isEditMode ? 'save' : 'add' }}</mat-icon>
+            <span>{{ loading ? 'Saving...' : (isEditMode ? 'Update Program' : 'Create Program') }}</span>
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>
