@@ -43,7 +43,6 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid token' })
   async refreshToken(@Request() req): Promise<ApiResponseDto<{ accessToken: string }>> {
-    // Extract the token from the request headers
     const authHeader = req.headers.authorization;
     const token = authHeader ? authHeader.replace('Bearer ', '') : '';
     

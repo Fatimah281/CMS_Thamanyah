@@ -5,6 +5,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Firestore, FieldValue } from 'firebase-admin/firestore';
 import { CreateProgramDto, UpdateProgramDto, ProgramQueryDto, ProgramResponseDto, ContentType, VideoSource } from './dto/program.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { RedisService } from '../redis/redis.service';
 
 export enum ProgramStatus {
   DRAFT = 'draft',
@@ -17,6 +18,7 @@ export class ProgramsService {
   constructor(
     @Inject('FIRESTORE') private readonly db: Firestore,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly redisService: RedisService,
   ) {}
 
   private col(name: string) { return this.db.collection(name); }
@@ -29,9 +31,7 @@ export class ProgramsService {
   private async nextId(counter: string): Promise<number> {
     const ref = this.db.collection('_counters').doc(counter);
     
-    // Use a transaction to ensure atomicity
     return this.db.runTransaction(async tx => {
-      // Perform all reads first
       const doc = await tx.get(ref);
       let currentValue = 0;
       
@@ -41,17 +41,14 @@ export class ProgramsService {
       
       const nextValue = currentValue + 1;
       
-      // Verify the ID is unique by checking if a program with this ID already exists
       const programRef = this.col('programs').doc(String(nextValue));
       const programDoc = await tx.get(programRef);
       
       let finalValue = nextValue;
       if (programDoc.exists) {
-        // If a program with this ID exists, increment and try again
         finalValue = nextValue + 1;
       }
       
-      // Perform all writes after all reads
       tx.set(ref, { value: finalValue, updatedAt: new Date() });
       
       return finalValue;
@@ -61,7 +58,6 @@ export class ProgramsService {
   async create(createDto: CreateProgramDto, uid: string, userRole: string): Promise<ProgramResponseDto> {
     if (userRole === 'viewer') throw new ForbiddenException('Viewers cannot create programs');
 
-    // Validate category and language exist
     await this.ensureRefExists('categories', createDto.categoryId, 'Category not found');
     await this.ensureRefExists('languages', createDto.languageId, 'Language not found');
 
@@ -78,10 +74,9 @@ export class ProgramsService {
       audioUrl: createDto.audioUrl || null,
       viewCount: createDto.viewCount || 0,
       likeCount: createDto.likeCount || 0,
-      isActive: createDto.isActive !== false, // Default to true
+      isActive: createDto.isActive !== false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      // New fields with IDs
       categoryId: createDto.categoryId,
       languageId: createDto.languageId,
       contentType: createDto.contentType || ContentType.VIDEO,
@@ -94,7 +89,7 @@ export class ProgramsService {
       tags: createDto.tags || [],
       fileSize: createDto.fileSize || null,
       fileName: createDto.fileName || null,
-      createdBy: uid, // Use Firebase Auth UID
+      createdBy: uid,
     };
     await this.col('programs').doc(String(id)).set(data as any);
     await this.clearProgramCache();
@@ -102,21 +97,34 @@ export class ProgramsService {
   }
 
   async findAll(query: ProgramQueryDto, pagination: PaginationDto, uid?: string, userRole?: string): Promise<PaginatedResponseDto<ProgramResponseDto>> {
-    const cacheKey = `programs:${JSON.stringify(query)}:${JSON.stringify(pagination)}:${uid}:${userRole}`;
+    const cacheKey = `programs:list:${JSON.stringify({ query, pagination, userRole })}`;
+    
+    console.log(`🔍 [CACHE] Checking cache for key: ${cacheKey}`);
 
-    const cached = await this.cacheManager.get<PaginatedResponseDto<ProgramResponseDto>>(cacheKey);
+    const cached = await this.redisService.getJson<PaginatedResponseDto<ProgramResponseDto>>(cacheKey);
     if (cached) {
-      return cached;
+      console.log(`✅ [CACHE] HIT - Data found in Redis cache for key: ${cacheKey}`);
+      console.log(`📊 [CACHE] Returning ${cached.data?.length || 0} programs from cache`);
+      
+      const programsWithSource = cached.data.map(program => ({
+        ...program,
+        source: 'Redis'
+      }));
+      return {
+        ...cached,
+        data: programsWithSource
+      };
     }
+
+    console.log(`❌ [CACHE] MISS - No data found in Redis cache for key: ${cacheKey}`);
+    console.log(`🗄️ [DB] Fetching data from Firestore database...`);
 
     let q: FirebaseFirestore.Query = this.col('programs');
 
-    // Apply role-based filtering
     if (userRole !== 'admin' && userRole !== 'editor') {
       q = q.where('status', '==', ProgramStatus.PUBLISHED);
     }
 
-    // Apply query filters
     if (query.categoryId !== undefined && query.categoryId !== null) {
       q = q.where('categoryId', '==', query.categoryId);
     }
@@ -137,12 +145,10 @@ export class ProgramsService {
       q = q.where('videoSource', '==', query.videoSource);
     }
 
-    // Apply sorting
     const sortBy = (query.sortBy as string) || 'createdAt';
     const sortOrder = (query.sortOrder as any) || 'DESC';
     q = q.orderBy(sortBy, sortOrder === 'ASC' ? 'asc' : 'desc');
 
-    // Apply pagination
     const page = pagination.page || 1;
     const limit = pagination.limit || 10;
     const offset = (page - 1) * limit;
@@ -153,10 +159,8 @@ export class ProgramsService {
       
       const docs = snap.docs.map(d => d.data());
 
-      // Get total count by building the same query without pagination
       let countQuery: FirebaseFirestore.Query = this.col('programs');
       
-      // Apply the same filters for count query
       if (userRole !== 'admin' && userRole !== 'editor') {
         countQuery = countQuery.where('status', '==', ProgramStatus.PUBLISHED);
       }
@@ -184,8 +188,6 @@ export class ProgramsService {
           const mapped = await this.mapToResponseDto(d as any);
           return mapped;
         } catch (error) {
-          console.error(`Error mapping document ${index + 1}:`, error);
-          // Return a fallback program object instead of throwing
           return {
             id: d.id,
             title: d.title || 'Error Loading Program',
@@ -218,11 +220,13 @@ export class ProgramsService {
         }
       }));
 
-      // Filter out any null/undefined results (shouldn't happen with our error handling)
       const validMappedData = mappedData.filter(item => item !== null && item !== undefined);
 
       const result: PaginatedResponseDto<ProgramResponseDto> = {
-        data: validMappedData,
+        data: validMappedData.map(program => ({
+          ...program,
+          source: 'Database'
+        })),
         meta: {
           page, 
           limit, 
@@ -233,21 +237,25 @@ export class ProgramsService {
         },
       };
 
-      await this.cacheManager.set(cacheKey, result, 300);
+      await this.redisService.setJson(cacheKey, result, 300);
 
       return result;
 
     } catch (error) {
-      console.error('Error executing query:', error);
       throw error;
     }
   }
-  
 
   async findOne(id: number, uid?: string, userRole?: string): Promise<ProgramResponseDto> {
-    const cacheKey = `program:${id}:${uid}:${userRole}`;
-    const cached = await this.cacheManager.get<ProgramResponseDto>(cacheKey);
-    if (cached) return cached;
+    const cacheKey = `program:${id}`;
+    
+    const cached = await this.redisService.getJson<ProgramResponseDto>(cacheKey);
+    if (cached) {
+      if (userRole !== 'admin' && userRole !== 'editor' && cached.status !== ProgramStatus.PUBLISHED) {
+        throw new NotFoundException('Program not found');
+      }
+      return { ...cached, source: 'Redis' } as any;
+    }
 
     const doc = await this.col('programs').doc(String(id)).get();
     if (!doc.exists) throw new NotFoundException('Program not found');
@@ -256,8 +264,9 @@ export class ProgramsService {
       throw new NotFoundException('Program not found');
     }
     const result = await this.mapToResponseDto(data);
-    await this.cacheManager.set(cacheKey, result, 300);
-    return result;
+    
+    await this.redisService.setJson(cacheKey, result, 3600);
+    return { ...result, source: 'Database' } as any;
   }
 
   async update(id: number, dto: UpdateProgramDto, uid: string, userRole: string): Promise<ProgramResponseDto> {
@@ -296,6 +305,20 @@ export class ProgramsService {
   async search(searchTerm: string, pagination: PaginationDto, uid?: string, ipAddress?: string, userAgent?: string): Promise<PaginatedResponseDto<ProgramResponseDto>> {
     await this.col('search_logs').add({ searchTerm, userId: uid || null, ipAddress: ipAddress || null, userAgent: userAgent || null, timestamp: new Date() });
 
+    const cacheKey = `programs:search:${searchTerm}:${JSON.stringify(pagination)}`;
+    
+    const cached = await this.redisService.getJson<PaginatedResponseDto<ProgramResponseDto>>(cacheKey);
+    if (cached) {
+      const programsWithSource = cached.data.map(program => ({
+        ...program,
+        source: 'Redis'
+      }));
+      return {
+        ...cached,
+        data: programsWithSource
+      };
+    }
+
     let q: FirebaseFirestore.Query = this.col('programs').where('status', '==', ProgramStatus.PUBLISHED).orderBy('createdAt', 'desc').limit(200);
     const snap = await q.get();
     const all = snap.docs.map(d => d.data() as any);
@@ -306,7 +329,7 @@ export class ProgramsService {
     const start = (page - 1) * limit;
     const slice = filtered.slice(start, start + limit);
 
-    return {
+    const result = {
       data: await Promise.all(slice.map(d => this.mapToResponseDto(d))),
       meta: {
         page, limit, total: filtered.length,
@@ -314,6 +337,16 @@ export class ProgramsService {
         hasNext: page * limit < filtered.length,
         hasPrev: page > 1,
       },
+    };
+
+    await this.redisService.setJson(cacheKey, result, 180);
+
+    return {
+      ...result,
+      data: result.data.map(program => ({
+        ...program,
+        source: 'Database'
+      }))
     };
   }
 
@@ -323,7 +356,6 @@ export class ProgramsService {
 
   private async mapToResponseDto(p: any): Promise<ProgramResponseDto> {
     try {
-      // Fetch user profile data with error handling
       let userDoc = null;
       try {
         if (p.createdBy !== undefined && p.createdBy !== null) {
@@ -331,24 +363,20 @@ export class ProgramsService {
           userDoc = userSnap.exists ? userSnap.data() : null;
         }
       } catch (error) {
-        console.warn(`Error fetching user profile: ${error.message}`);
         userDoc = null;
       }
 
       const createdBy = p.createdBy || 'unknown';
 
-      // Fetch metadata with error handling
       let metadataSnap = { docs: [] };
       try {
         if (p.id !== undefined && p.id !== null) {
           metadataSnap = await this.col('metadata').where('programId', '==', p.id).get();
         }
       } catch (error) {
-        console.warn(`Error fetching metadata: ${error.message}`);
         metadataSnap = { docs: [] };
       }
 
-      // Fetch category and language data with error handling
       let categoryDoc = null;
       try {
         if (p.categoryId !== undefined && p.categoryId !== null) {
@@ -356,7 +384,6 @@ export class ProgramsService {
           categoryDoc = categorySnap.exists ? categorySnap.data() : null;
         }
       } catch (error) {
-        console.warn(`Error fetching category: ${error.message}`);
         categoryDoc = null;
       }
       
@@ -367,7 +394,6 @@ export class ProgramsService {
           languageDoc = languageSnap.exists ? languageSnap.data() : null;
         }
       } catch (error) {
-        console.warn(`Error fetching language: ${error.message}`);
         languageDoc = null;
       }
 
@@ -386,7 +412,6 @@ export class ProgramsService {
         isActive: p.isActive !== false,
         createdAt: p.createdAt || new Date(),
         updatedAt: p.updatedAt || p.createdAt || new Date(),
-        // New fields with proper category and language data
         category: { 
           id: p.categoryId || null, 
           name: categoryDoc ? (categoryDoc as any).name : 'Unknown Category' 
@@ -417,8 +442,6 @@ export class ProgramsService {
 
       return result;
     } catch (error) {
-      console.error(`Error mapping program ${p.id}:`, error);
-      // Return a fallback program object instead of throwing
       return {
         id: p.id,
         title: p.title || 'Error Loading Program',
@@ -452,6 +475,8 @@ export class ProgramsService {
   }
 
   private async clearProgramCache(): Promise<void> {
+    await this.redisService.clearKeysByPrefix('cms:program:');
+    
     const keys = await (this.cacheManager as any).store.keys('programs:*');
     if (keys?.length) await Promise.all(keys.map((k: string) => this.cacheManager.del(k)));
   }

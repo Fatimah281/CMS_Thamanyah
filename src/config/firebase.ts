@@ -9,23 +9,19 @@ function loadServiceAccount(raw: string): any {
     return null;
   }
 
-  // If it looks like JSON
   if (raw.trim().startsWith('{')) {
     return JSON.parse(raw);
   }
 
-  // If it looks like a file path
   if (fs.existsSync(raw)) {
     const fileContents = fs.readFileSync(raw, 'utf8');
     return JSON.parse(fileContents);
   }
 
-  // Try base64 decode
   try {
     const decoded = Buffer.from(raw, 'base64').toString('utf8');
     return JSON.parse(decoded);
   } catch (e) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON. Provide a JSON string, a file path, or base64-encoded JSON.');
     return null;
   }
 }

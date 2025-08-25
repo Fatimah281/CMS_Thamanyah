@@ -1,0 +1,73 @@
+{
+  "test_info": {
+    "name": "CMS Thamanyah Load Test - Public Endpoints Only",
+    "mode": "simple",
+    "base_url": "http://localhost:3000/api/v1",
+    "redis_url": "http://localhost:6379",
+    "total_duration": "NaNs",
+    "total_requests": 229
+  },
+  "performance_metrics": {
+    "response_time": {
+      "average": 606.2551366812228,
+      "median": 16.393,
+      "p95": 1876.75192,
+      "p99": 0,
+      "min": 1.9317,
+      "max": 9992.074
+    },
+    "throughput": {
+      "requests_per_second": 6.1268949124803695,
+      "total_requests": 229,
+      "users_per_hour_equivalent": 22056.82168492933
+    },
+    "error_rates": {
+      "http_errors": 8.296943231441048,
+      "total_errors": 0,
+      "success_rate": 91.70305676855895
+    },
+    "redis_performance": {
+      "hit_rate": 100,
+      "miss_rate": 0,
+      "total_redis_checks": 0
+    },
+    "scalability": {
+      "max_concurrent_users": 5,
+      "average_concurrent_users": 0,
+      "peak_requests_per_second": 6.1268949124803695
+    }
+  },
+  "thresholds_analysis": {
+    "response_time_p95_passed": false,
+    "response_time_p99_passed": false,
+    "error_rate_passed": false,
+    "throughput_passed": false,
+    "redis_hit_rate_passed": true
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "performance",
+      "issue": "High average response time",
+      "current_value": "606.26ms",
+      "target": "<500ms",
+      "action": "Implement Redis caching, optimize database queries, add proper indexing"
+    },
+    {
+      "priority": "critical",
+      "category": "reliability",
+      "issue": "High error rate",
+      "current_value": "8.30%",
+      "target": "<5%",
+      "action": "Investigate error logs, improve error handling, check database connectivity"
+    },
+    {
+      "priority": "high",
+      "category": "scalability",
+      "issue": "Low throughput",
+      "current_value": "6.13 req/s",
+      "target": ">100 req/s",
+      "action": "Optimize application performance, implement caching, consider horizontal scaling"
+    }
+  ]
+}

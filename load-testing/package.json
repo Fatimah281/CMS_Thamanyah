@@ -1,0 +1,48 @@
+{
+  "name": "cms-thamanyah-load-testing",
+  "version": "1.0.0",
+  "description": "Load testing suite for CMS Thamanyah backend services",
+  "main": "redis-monitor.js",
+  "scripts": {
+    "test": "chmod +x run-load-test.sh && ./run-load-test.sh",
+    "test:quick": "k6 run --duration 5m --vus 10 k6-load-test.js",
+    "test:stress": "k6 run --duration 10m --vus 100 k6-load-test.js",
+    "test:10m": "k6 run k6-load-test.js",
+    "monitor:redis": "node redis-monitor.js",
+    "dashboard": "node performance-dashboard.js",
+    "setup": "npm install && chmod +x run-load-test.sh",
+    "clean": "rm -rf reports/*.json reports/*.html",
+    "report": "open reports/load-test-report.html",
+    "start:all": "concurrently \"npm run dashboard\" \"npm run monitor:redis\" \"npm run test:10m\""
+  },
+  "keywords": [
+    "load-testing",
+    "k6",
+    "redis",
+    "performance",
+    "nestjs",
+    "api"
+  ],
+  "author": "Thamanyah Team",
+  "license": "MIT",
+  "dependencies": {
+    "redis": "^4.6.0",
+    "ws": "^8.14.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fatimah281/cms-thamanyah.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fatimah281/cms-thamanyah/issues"
+  },
+  "homepage": "https://github.com/Fatimah281/cms-thamanyah#readme"
+}

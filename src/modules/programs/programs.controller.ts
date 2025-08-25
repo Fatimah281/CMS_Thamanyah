@@ -40,20 +40,17 @@ export class ProgramsController {
       throw new BadRequestException('No video file provided');
     }
 
-    // Validate file type
     const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov'];
     if (!allowedTypes.includes(file.mimetype)) {
       throw new BadRequestException('Invalid file type. Only video files are allowed.');
     }
 
-    // Validate file size (500MB limit)
-    const maxSize = 500 * 1024 * 1024; // 500MB
+    const maxSize = 500 * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException('File size too large. Maximum size is 500MB.');
     }
 
     try {
-      // For now, return the file info - the actual upload handling will be implemented in the service
       const uploadResult = {
         url: `/uploads/videos/${file.filename}`,
         fileName: file.originalname,
@@ -107,13 +104,11 @@ export class ProgramsController {
   @ApiResponse({ status: 200, description: 'Programs retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async findAll(@Query() query: any, @Request() req) {
-    // Extract pagination parameters
     const pagination: PaginationDto = {
       page: parseInt(query.page) || 1,
       limit: parseInt(query.limit) || 10,
     };
 
-    // Extract program query parameters
     const programQuery: ProgramQueryDto = {
       status: query.status,
       categoryId: query.categoryId ? parseInt(query.categoryId) : undefined,
@@ -124,7 +119,6 @@ export class ProgramsController {
       sortOrder: query.sortOrder || 'DESC',
     };
 
-    // For public access, only show published programs
     const result = await this.programsService.findAll(programQuery, pagination, undefined, 'viewer');
     return {
       success: true,
@@ -162,7 +156,6 @@ export class ProgramsController {
   @ApiResponse({ status: 200, description: 'Program retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Program not found' })
   async findOne(@Param('id') id: string, @Request() req) {
-    // For public access, only show published programs
     const program = await this.programsService.findOne(parseInt(id), undefined, 'viewer');
     return {
       success: true,
@@ -181,7 +174,6 @@ export class ProgramsController {
     @Body() updateProgramDto: UpdateProgramDto,
     @Request() req,
   ) {
-    // For public access, use system admin
     const program = await this.programsService.update(parseInt(id), updateProgramDto, 'system', 'admin');
     return {
       success: true,

@@ -13,30 +13,26 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
-  // Security middleware
   app.use(helmet());
   app.use(compression());
 
-  // Serve static files from uploads directory
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
   });
 
   app.enableCors({
-    origin: '*', // Allow all origins
+    origin: '*',
     credentials: true,
   });
 
   app.setGlobalPrefix('api/v1');
 
-  // Global exception filter for validation errors
   app.useGlobalFilters(new ValidationExceptionFilter());
 
-  // Validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false, // Allow extra properties for pagination
+      forbidNonWhitelisted: false,
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
@@ -44,7 +40,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('CMS Thamanyah API')
     .setDescription('The CMS Thamanyah API description')
@@ -56,12 +51,8 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
-
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-  console.log(`🔧 Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
 }
 
 bootstrap().catch((error) => {
-  console.error('Failed to start application:', error);
+  throw error;
 });

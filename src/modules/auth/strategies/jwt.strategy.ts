@@ -19,7 +19,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // Check if user profile exists and is active
     const profileDoc = await this.db.collection('user_profiles').doc(payload.uid).get();
     
     if (!profileDoc.exists) {
@@ -33,7 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       uid: payload.uid,
-      id: payload.uid, // For compatibility with existing code
+      id: payload.uid,
       username: payload.username,
       email: payload.email,
       role: payload.role,
