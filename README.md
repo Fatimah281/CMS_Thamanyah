@@ -65,6 +65,11 @@ CMS_Thamanyah/
 - **SCSS**: Advanced CSS preprocessing
 - **Angular CDK**: Component development kit
 
+### Testing & Monitoring
+- **K6**: Load testing for performance validation
+- **Express**: Real-time dashboard for monitoring
+- **Chart.js**: Performance visualization
+
 ## 📋 Prerequisites
 
 Before setting up the system, ensure you have:
@@ -111,6 +116,20 @@ npm run serve:cms
 
 # Start Discovery Platform (port 4201)
 npm run serve:discovery
+```
+
+### 4. Load Testing Dashboard (Optional)
+```bash
+cd load-testing
+
+# Install dependencies
+npm install
+
+# Start dashboard (port 8080)
+npm run dashboard
+
+# Run load test with dashboard
+npm run test:with-dashboard
 ```
 
 ## 🔧 System Architecture

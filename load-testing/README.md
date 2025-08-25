@@ -1,216 +1,143 @@
-# Load Testing Suite for CMS Thamanyah Backend
+# Read-Only Load Testing Suite for CMS Thamanyah
 
-This directory contains a comprehensive load testing solution for the CMS Thamanyah backend services using K6 and Redis monitoring.
+## 🎯 Purpose
+**Read-only load testing** for CMS Thamanyah backend. Tests GET endpoints only - no database writes.
 
-## 🎯 Overview
+## ⚠️ Key Points
+- **No Authentication Required** - Public read endpoints only
+- **No Data Modification** - All operations are GET requests
+- **Safe for Production** - Can run against any environment
 
-The load testing suite simulates realistic user behavior for both CMS and Discovery frontend services, with comprehensive Redis performance monitoring and detailed reporting.
+## 📋 Tested Endpoints
+- `GET /api/v1/programs` - List programs with pagination
+- `GET /api/v1/programs?category={category}` - Filter by category
+- `GET /api/v1/programs?language={language}` - Filter by language
+- `GET /api/v1/programs?level={level}` - Filter by difficulty
+- `GET /api/v1/programs?duration={duration}` - Filter by duration
+- `GET /api/v1/programs/{id}` - Program details
+- `GET /api/v1/programs/search?q={term}` - Search programs
+- `GET /api/v1/categories` - Available categories
 
-## 📋 Prerequisites
-
-### Required Software
-- **K6**: Performance testing tool
-- **Node.js**: For Redis monitoring scripts
-- **Redis**: Cache server (running on localhost:6379)
-- **curl**: For API testing and health checks
-
-### Installation
-
-#### 1. Install K6
-```bash
-# Windows (using Chocolatey)
-choco install k6
-
-# macOS (using Homebrew)
-brew install k6
-
-# Linux (Ubuntu/Debian)
-sudo gpg -k
-sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-sudo apt-get update
-sudo apt-get install k6
-
-# Or download from: https://k6.io/docs/getting-started/installation/
-```
-
-#### 2. Install Node.js Dependencies
-```bash
-cd load-testing
-npm install redis
-```
-
-#### 3. Verify Redis Installation
-```bash
-# Check if Redis is running
-redis-cli ping
-# Should return: PONG
-```
-
-**If Redis CLI is not found, install Redis using one of these methods:**
-
-**Option 1: Download from Redis website**
-- Visit: https://redis.io/download
-- Download Windows version
-- Extract and add to PATH
-
-**Option 2: Using Windows Package Manager (if available)**
-```bash
-winget install Redis.Redis
-```
-
-**Option 3: Using Chocolatey (if installed)**
-```bash
-choco install redis-64
-```
-
-**Option 4: Manual installation**
-- Download Redis for Windows from: https://github.com/microsoftarchive/redis/releases
-- Extract to C:\Redis
-- Add C:\Redis to your PATH environment variable
-- Start Redis server: `redis-server`
-```
+## 📊 Metrics
+- **Response Times**: Average, P90, P95, P99 for each endpoint
+- **Error Rates**: Per-endpoint tracking
+- **Throughput**: Requests per second
+- **Business Metrics**: Programs listed, viewed, searched, categories viewed
 
 ## 🚀 Quick Start
 
-### 1. Start the Backend
+### Prerequisites
+- **K6 installed** - [Installation Guide](https://k6.io/docs/getting-started/installation/)
+- **Backend running** - CMS Thamanyah backend accessible
+
+### Usage
 ```bash
-# From the project root
-npm run start:dev
+cd load-testing
+
+# Quick test (3 minutes, 10 users)
+npm run test:quick
+
+# Full test (75 minutes, up to 500 users)
+npm run test:full
+
+# Stress test (16 minutes, up to 500 users)
+npm run test:stress
+
+# Dashboard only (port 8080)
+npm run dashboard
+
+# Test with real-time dashboard
+npm run test:with-dashboard
 ```
 
-### 2. Run Comprehensive Load Tests (10M Users/Hour Target)
+### Custom Configuration
 ```bash
-# Option 1: Run everything together
-npm run load:all
+# Custom base URL
+k6 run -e BASE_URL=http://your-api.com k6-load-test-readonly.js
 
-# Option 2: Run components separately
-npm run load:dashboard    # Start real-time dashboard
-npm run load:monitor      # Start Redis monitoring
-npm run load:test:10m     # Run 10M users/hour load test
+# Custom test duration and users
+k6 run --stage 2m:50 --stage 5m:100 k6-load-test-readonly.js
 ```
 
-### 3. View Results
-```bash
-# Real-time dashboard (during test)
-open http://localhost:8080
+## 📈 Test Scenarios
+- **40%** - Browse programs list
+- **30%** - Search programs
+- **20%** - View categories
+- **10%** - Browse without details
 
-# Generated reports (after test)
-open reports/load-test-report.html
-open reports/performance-analysis-report.html
-```
+Each includes randomized parameters and 1-4 second think times.
 
-## 📊 Test Scenarios
-
-The load testing suite includes four main scenarios that simulate realistic user behavior:
-
-### 1. Discovery Frontend (60% of traffic)
-- **Purpose**: Simulates end users browsing content
-- **Operations**: 
-  - Browse programs with pagination
-  - View program details
-  - Search and filter programs
-  - Get categories and languages
-- **Load Pattern**: Read-heavy, high frequency
-
-### 2. CMS Frontend (20% of traffic)
-- **Purpose**: Simulates content creators and administrators
-- **Operations**:
-  - Create new programs
-  - Update existing programs
-  - View program details
-- **Load Pattern**: Write-heavy, moderate frequency
-
-### 3. Authentication (15% of traffic)
-- **Purpose**: Simulates user login/logout cycles
-- **Operations**:
-  - User login
-  - User registration (occasional)
-  - Token refresh
-- **Load Pattern**: Moderate frequency, authentication-heavy
-
-### 4. File Upload (5% of traffic)
-- **Purpose**: Simulates video upload operations
-- **Operations**:
-  - File upload endpoint testing
-  - Upload validation
-- **Load Pattern**: Heavy operations, low frequency
+## 📄 Output
+- **Console Output** - Real-time progress and summary
+- **load-test-summary-readonly.json** - Detailed metrics
+- **Dashboard** - Real-time monitoring at http://localhost:8080
 
 ## 🔧 Configuration
+- `BASE_URL` - Backend API base URL (default: http://localhost:3000)
+- **40+ search terms** - Programming, web development, AI, etc.
+- **12 categories** - Technology, business, healthcare, etc.
+- **12 languages** - English, Arabic, Spanish, etc.
 
-### Environment Variables
+## 🚨 Troubleshooting
 
-You can customize the load testing behavior using environment variables:
-
+### Common Issues
+**Connection Failed**
 ```bash
-# API Configuration
-export BASE_URL="http://localhost:3000/api/v1"
-export REDIS_URL="localhost:6379"
+❌ Warning: Health check failed (404)
+```
+**Solution**: Check backend is running and BASE_URL is correct
 
-# Test Configuration
-export TEST_DURATION="30m"
-export MAX_VUS=50
+**High Error Rates**
+```bash
+❌ Error rate: 15.2%
+```
+**Solution**: Check backend logs, reduce load, verify endpoints
 
-# Redis Configuration
-export REDIS_HOST="localhost"
-export REDIS_PORT=6379
-export REDIS_PASSWORD=""
-export MONITOR_INTERVAL=5000
+### Debug Mode
+```bash
+# Verbose logging
+k6 run --verbose k6-load-test-readonly.js
 
-# Output Configuration
-export REPORT_DIR="./reports"
-export METRICS_FILE="./reports/redis-metrics.json"
+# Single user test
+k6 run --vus 1 --duration 1m k6-load-test-readonly.js
 ```
 
-### Test Parameters
+## 📝 Best Practices
+### Before Running
+1. Verify backend is running
+2. Check data exists in database
+3. Ensure system has capacity
+4. Start with quick tests
 
-The K6 test configuration includes:
+### During Test
+1. Monitor backend logs
+2. Watch real-time metrics
+3. Check resource usage
 
-- **Stages**: Ramp-up from 100 to 5000 users over 90 minutes (10M users/hour equivalent)
-- **Thresholds**: 
-  - 95% of requests should complete within 1 second
-  - 99% of requests should complete within 2 seconds
-  - Error rate should be below 5%
-  - Throughput should be above 2000 requests/second
-  - Redis hit rate should be above 70%
-- **Metrics**: Comprehensive performance monitoring with real-time dashboard
+### After Test
+1. Review results
+2. Check logs for issues
+3. Document findings
 
-## 📈 Monitoring and Metrics
-
-### Redis Performance Monitoring
-
-The suite includes comprehensive Redis monitoring:
-
+## 📞 Support
+### Common Commands
 ```bash
-# Start Redis monitoring separately
-node redis-monitor.js
-
-# Or run with custom configuration
-REDIS_HOST=localhost REDIS_PORT=6379 node redis-monitor.js
+npm run test:quick    # Quick test (3 minutes)
+npm run test:full     # Full test (75 minutes)
+npm run test:stress   # Stress test (16 minutes)
+npm run dashboard     # Start dashboard only
+npm run test:with-dashboard  # Test with dashboard
+npm run clean         # Clean up results
+npm run help          # Show help
 ```
 
-**Monitored Metrics:**
-- Connected clients
-- Memory usage
-- Hit/miss rates
-- Commands per second
-- Response times
+### Getting Help
+1. Check console output and backend logs
+2. Verify all prerequisites are met
+3. Test API calls manually
+4. Start with smaller user counts
 
-### Performance Metrics
+---
 
-The load tests measure:
-
-- **Response Time**: Average, median, 95th and 99th percentiles
-- **Throughput**: Requests per second
-- **Error Rate**: Percentage of failed requests
-- **Redis Performance**: Hit rates and latency
-
-## 📄 Reports and Analysis
-
-### Generated Reports
-
-After running the load tests, you'll find:
-
-1. **`load-test-report.html`**: Interactive HTML report with charts and metrics
-2. **`k6-summary.json`**: Raw K6 test results
-3. **`
+**Happy Load Testing! 🚀**
+Safe, comprehensive performance testing without data modification.

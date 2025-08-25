@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-25T10:44:27.972Z",
+  "test_info": {
+    "name": "CMS Thamanyah Read-Only Load Test",
+    "virtual_users": 10,
+    "iterations": 0
+  },
+  "performance_metrics": {
+    "response_time": {
+      "programs_list": {
+        "average": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "program_details": {
+        "average": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "search": {
+        "average": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "categories": {
+        "average": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "filters": {
+        "average": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    },
+    "error_rates": {
+      "programs_list": 0,
+      "program_details": 0,
+      "search": 0,
+      "categories": 0,
+      "filters": 0,
+      "overall": 0
+    },
+    "throughput": {
+      "requests_per_second": 0,
+      "requests_per_second_avg": 0
+    }
+  },
+  "business_metrics": {
+    "programs_listed": 0,
+    "programs_viewed": 0,
+    "searches_performed": 0,
+    "categories_viewed": 0,
+    "filters_viewed": 0
+  },
+  "thresholds": {
+    "passed": 0,
+    "failed": 0,
+    "total": 0
+  }
+}

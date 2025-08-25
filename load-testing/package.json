@@ -1,41 +1,36 @@
 {
   "name": "cms-thamanyah-load-testing",
   "version": "1.0.0",
-  "description": "Load testing suite for CMS Thamanyah backend services",
-  "main": "redis-monitor.js",
+  "description": "Read-only load testing suite for CMS Thamanyah backend services - No database writes, only GET endpoint testing",
+  "main": "k6-load-test-readonly.js",
   "scripts": {
-    "test": "chmod +x run-load-test.sh && ./run-load-test.sh",
-    "test:quick": "k6 run --duration 5m --vus 10 k6-load-test.js",
-    "test:stress": "k6 run --duration 10m --vus 100 k6-load-test.js",
-    "test:10m": "k6 run k6-load-test.js",
-    "monitor:redis": "node redis-monitor.js",
+    "test": "k6 run k6-load-test-readonly.js",
+    "test:quick": "k6 run --stage 1m:10 --stage 2m:10 k6-load-test-readonly.js",
+    "test:stress": "k6 run --stage 1m:50 --stage 5m:200 --stage 10m:500 k6-load-test-readonly.js",
+    "test:full": "k6 run k6-load-test-readonly.js",
     "dashboard": "node performance-dashboard.js",
-    "setup": "npm install && chmod +x run-load-test.sh",
-    "clean": "rm -rf reports/*.json reports/*.html",
-    "report": "open reports/load-test-report.html",
-    "start:all": "concurrently \"npm run dashboard\" \"npm run monitor:redis\" \"npm run test:10m\""
+    "test:with-dashboard": "concurrently \"npm run dashboard\" \"npm run test\"",
+    "test:quick:with-dashboard": "concurrently \"npm run dashboard\" \"npm run test:quick\"",
+    "clean": "rm -rf *.json *.html",
+    "help": "echo 'Available commands: npm run test, npm run test:quick, npm run test:stress, npm run test:full, npm run dashboard, npm run test:with-dashboard'"
   },
   "keywords": [
     "load-testing",
     "k6",
-    "redis",
     "performance",
-    "nestjs",
-    "api"
+    "read-only",
+    "api-testing",
+    "get-endpoints"
   ],
   "author": "Thamanyah Team",
   "license": "MIT",
-  "dependencies": {
-    "redis": "^4.6.0",
-    "ws": "^8.14.0",
-    "axios": "^1.6.0"
-  },
-  "devDependencies": {
-    "@types/node": "^18.0.0"
-  },
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "concurrently": "^8.2.2"
   },
   "repository": {
     "type": "git",
