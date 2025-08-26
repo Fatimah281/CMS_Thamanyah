@@ -25,7 +25,7 @@ export class ProgramService {
 
   constructor(private http: HttpClient) {}
 
-  getPrograms(page: number = 1, limit: number = 10, filters?: any): Observable<PaginatedResponse<Program>> {
+  getPrograms(page: number = 1, limit: number = 20, filters?: any): Observable<PaginatedResponse<Program>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());

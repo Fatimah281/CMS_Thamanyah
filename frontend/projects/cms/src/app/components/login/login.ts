@@ -114,7 +114,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       // Redirect based on user role
       if (result.redirectUrl === '/discovery') {
         // Redirect to discovery app
-        window.location.href = 'http://localhost:4201';
+       // window.location.href = 'http://localhost:4201';
       } else {
         // Redirect within CMS
         this.router.navigate([result.redirectUrl]);
@@ -151,7 +151,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       // Redirect based on user role
       if (result.redirectUrl === '/discovery') {
         // Redirect to discovery app
-        window.location.href = 'http://localhost:4201';
+        //window.location.href = 'http://localhost:4201';
       } else {
         // Redirect within CMS
         this.router.navigate([result.redirectUrl]);

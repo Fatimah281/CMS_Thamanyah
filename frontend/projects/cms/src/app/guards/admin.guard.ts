@@ -19,7 +19,7 @@ export class AdminGuard implements CanActivate {
         if (user && this.authService.isAdmin()) {
           return true;
         } else {
-          window.location.href = 'http://localhost:4201';
+          this.router.navigate(['/login']);
           return false;
         }
       })

@@ -34,18 +34,33 @@ function loadServiceAccount(raw: string): any {
       provide: 'FIREBASE_APP',
       inject: [ConfigService],
       useFactory: (config: ConfigService): App => {
-        const serviceAccountJson = config.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
-        const credentials = loadServiceAccount(serviceAccountJson);
-        if (credentials) {
-          return initializeApp({ credential: cert(credentials) });
+        try {
+          console.log('🔥 Initializing Firebase...');
+          const serviceAccountJson = config.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON') || './cms-thamanyah-firebase-adminsdk-fbsvc-b89cbb4224.json';
+          console.log('📄 Service account path:', serviceAccountJson);
+          
+          const credentials = loadServiceAccount(serviceAccountJson);
+          if (credentials) {
+            console.log('✅ Firebase credentials loaded from service account');
+            return initializeApp({ credential: cert(credentials) });
+          }
+          console.log('⚠️ No service account found, using default credentials');
+          return initializeApp({ credential: applicationDefault() });
+        } catch (error) {
+          console.warn('❌ Firebase initialization failed, using default credentials:', error.message);
+          return initializeApp({ credential: applicationDefault() });
         }
-        return initializeApp({ credential: applicationDefault() });
       },
     },
     {
       provide: 'FIRESTORE',
       inject: ['FIREBASE_APP'],
-      useFactory: (): Firestore => getFirestore(),
+      useFactory: (): Firestore => {
+        console.log('📊 Initializing Firestore...');
+        const firestore = getFirestore();
+        console.log('✅ Firestore initialized successfully');
+        return firestore;
+      },
     },
   ],
   exports: ['FIREBASE_APP', 'FIRESTORE'],

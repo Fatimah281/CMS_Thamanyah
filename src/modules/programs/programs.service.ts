@@ -97,67 +97,36 @@ export class ProgramsService {
   }
 
   async findAll(query: ProgramQueryDto, pagination: PaginationDto, uid?: string, userRole?: string): Promise<PaginatedResponseDto<ProgramResponseDto>> {
-    const cacheKey = `programs:list:${JSON.stringify({ query, pagination, userRole })}`;
-    
-    console.log(`🔍 [CACHE] Checking cache for key: ${cacheKey}`);
-
-    const cached = await this.redisService.getJson<PaginatedResponseDto<ProgramResponseDto>>(cacheKey);
-    if (cached) {
-      console.log(`✅ [CACHE] HIT - Data found in Redis cache for key: ${cacheKey}`);
-      console.log(`📊 [CACHE] Returning ${cached.data?.length || 0} programs from cache`);
-      
-      const programsWithSource = cached.data.map(program => ({
-        ...program,
-        source: 'Redis'
-      }));
-      return {
-        ...cached,
-        data: programsWithSource
-      };
-    }
-
-    console.log(`❌ [CACHE] MISS - No data found in Redis cache for key: ${cacheKey}`);
-    console.log(`🗄️ [DB] Fetching data from Firestore database...`);
-
-    let q: FirebaseFirestore.Query = this.col('programs');
-
-    if (userRole !== 'admin' && userRole !== 'editor') {
-      q = q.where('status', '==', ProgramStatus.PUBLISHED);
-    }
-
-    if (query.categoryId !== undefined && query.categoryId !== null) {
-      q = q.where('categoryId', '==', query.categoryId);
-    }
-
-    if (query.languageId !== undefined && query.languageId !== null) {
-      q = q.where('languageId', '==', query.languageId);
-    }
-
-    if (query.status !== undefined && query.status !== null) {
-      q = q.where('status', '==', query.status);
-    }
-
-    if (query.contentType !== undefined && query.contentType !== null) {
-      q = q.where('contentType', '==', query.contentType);
-    }
-
-    if (query.videoSource !== undefined && query.videoSource !== null) {
-      q = q.where('videoSource', '==', query.videoSource);
-    }
-
-    const sortBy = (query.sortBy as string) || 'createdAt';
-    const sortOrder = (query.sortOrder as any) || 'DESC';
-    q = q.orderBy(sortBy, sortOrder === 'ASC' ? 'asc' : 'desc');
-
-    const page = pagination.page || 1;
-    const limit = pagination.limit || 10;
-    const offset = (page - 1) * limit;
-    q = q.offset(offset).limit(limit);
-
     try {
-      const snap = await q.get();
-      
-      const docs = snap.docs.map(d => d.data());
+      let q: FirebaseFirestore.Query = this.col('programs');
+
+      if (userRole !== 'admin' && userRole !== 'editor') {
+        q = q.where('status', '==', ProgramStatus.PUBLISHED);
+      }
+
+      if (query.categoryId !== undefined && query.categoryId !== null) {
+        q = q.where('categoryId', '==', query.categoryId);
+      }
+
+      if (query.languageId !== undefined && query.languageId !== null) {
+        q = q.where('languageId', '==', query.languageId);
+      }
+
+      if (query.status !== undefined && query.status !== null) {
+        q = q.where('status', '==', query.status);
+      }
+
+      if (query.contentType !== undefined && query.contentType !== null) {
+        q = q.where('contentType', '==', query.contentType);
+      }
+
+      if (query.videoSource !== undefined && query.videoSource !== null) {
+        q = q.where('videoSource', '==', query.videoSource);
+      }
+
+      const sortBy = (query.sortBy as string) || 'createdAt';
+      const sortOrder = (query.sortOrder as any) || 'DESC';
+      q = q.orderBy(sortBy, sortOrder === 'ASC' ? 'asc' : 'desc');
 
       let countQuery: FirebaseFirestore.Query = this.col('programs');
       
@@ -183,9 +152,24 @@ export class ProgramsService {
       const countSnap = await countQuery.get();
       const total = countSnap.docs.length;
 
-      const mappedData = await Promise.all(docs.map(async (d, index) => {
+      const page = pagination.page || 1;
+      const limit = pagination.limit || 10;
+      const offset = (page - 1) * limit;
+      
+      q = q.offset(offset).limit(limit);
+
+      const snap = await q.get();
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+      const statusCounts: { [key: string]: number } = {};
+      docs.forEach((doc: any) => {
+        const status = doc.status || 'undefined';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+
+      const mappedData = await Promise.all(docs.map(async (d: any, index) => {
         try {
-          const mapped = await this.mapToResponseDto(d as any);
+          const mapped = await this.mapToResponseDto(d);
           return mapped;
         } catch (error) {
           return {
@@ -237,8 +221,6 @@ export class ProgramsService {
         },
       };
 
-      await this.redisService.setJson(cacheKey, result, 300);
-
       return result;
 
     } catch (error) {
@@ -276,7 +258,6 @@ export class ProgramsService {
     const current = snap.data() as any;
 
     if (userRole === 'viewer') throw new ForbiddenException('Viewers cannot update programs');
-    if (userRole === 'editor' && current.createdBy !== uid) throw new ForbiddenException('You can only update your own programs');
 
     const updateData = {
       ...dto,
@@ -475,9 +456,105 @@ export class ProgramsService {
   }
 
   private async clearProgramCache(): Promise<void> {
-    await this.redisService.clearKeysByPrefix('cms:program:');
-    
-    const keys = await (this.cacheManager as any).store.keys('programs:*');
-    if (keys?.length) await Promise.all(keys.map((k: string) => this.cacheManager.del(k)));
+    try {
+      await this.redisService.clearKeysByPrefix('cms:program:');
+      await this.redisService.clearKeysByPrefix('programs:');
+      
+      const keys = await (this.cacheManager as any).store.keys('programs:*');
+      if (keys?.length) {
+        await Promise.all(keys.map((k: string) => this.cacheManager.del(k)));
+      }
+    } catch (error) {
+      // Cache clearing failed
+    }
+  }
+
+  async debugGetAllPrograms(): Promise<any> {
+    try {
+      console.log('🔍 [DEBUG] Fetching all programs without any filters...');
+      
+      const snap = await this.col('programs').get();
+      const docs = snap.docs.map(d => d.data());
+      
+      console.log(`📊 [DEBUG] Total documents in programs collection: ${docs.length}`);
+      
+      const programsWithStatus = docs.map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        status: doc.status,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      }));
+      
+      console.log('📋 [DEBUG] Programs with their status:');
+      programsWithStatus.forEach(program => {
+        console.log(`  - ID: ${program.id}, Title: ${program.title}, Status: ${program.status}`);
+      });
+      
+      // Test the published filter
+      console.log('🔍 [DEBUG] Testing published filter...');
+      const publishedSnap = await this.col('programs').where('status', '==', ProgramStatus.PUBLISHED).get();
+      const publishedDocs = publishedSnap.docs.map(d => d.data());
+      console.log(`📊 [DEBUG] Programs with status 'published': ${publishedDocs.length}`);
+      
+      return {
+        totalCount: docs.length,
+        publishedCount: publishedDocs.length,
+        programs: programsWithStatus,
+        publishedPrograms: publishedDocs.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          status: doc.status
+        }))
+      };
+    } catch (error) {
+      console.error('❌ [DEBUG] Error in debugGetAllPrograms:', error);
+      throw error;
+    }
+  }
+
+  async publishAllDraftPrograms(): Promise<any> {
+    try {
+      console.log('🔧 [DEBUG] Publishing all draft programs...');
+      
+      const draftSnap = await this.col('programs').where('status', '==', ProgramStatus.DRAFT).get();
+      const draftDocs = draftSnap.docs;
+      
+      console.log(`📊 [DEBUG] Found ${draftDocs.length} draft programs to publish`);
+      
+      const batch = this.db.batch();
+      const updatedPrograms = [];
+      
+      draftDocs.forEach(doc => {
+        const data = doc.data();
+        batch.update(doc.ref, { 
+          status: ProgramStatus.PUBLISHED,
+          updatedAt: new Date()
+        });
+        
+        updatedPrograms.push({
+          id: data.id,
+          title: data.title,
+          oldStatus: data.status,
+          newStatus: ProgramStatus.PUBLISHED
+        });
+      });
+      
+      await batch.commit();
+      
+      // Clear all program-related caches
+      await this.clearProgramCache();
+      await this.redisService.clearKeysByPrefix('programs:');
+      
+      console.log(`✅ [DEBUG] Successfully published ${updatedPrograms.length} programs`);
+      
+      return {
+        updatedCount: updatedPrograms.length,
+        updatedPrograms
+      };
+    } catch (error) {
+      console.error('❌ [DEBUG] Error in publishAllDraftPrograms:', error);
+      throw error;
+    }
   }
 }

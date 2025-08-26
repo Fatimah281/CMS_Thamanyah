@@ -23,11 +23,12 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { ProgramsService } from './programs.service';
 import { CreateProgramDto, UpdateProgramDto, ProgramQueryDto, ProgramResponseDto, ProgramStatus, ContentType, VideoSource } from './dto/program.dto';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @ApiTags('Programs')
 @Controller('programs')
 export class ProgramsController {
-  constructor(private readonly programsService: ProgramsService) {}
+  constructor(private readonly programsService: ProgramsService, private readonly jwtService: JwtService) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('video'))
@@ -80,8 +81,27 @@ export class ProgramsController {
   async create(@Body() createProgramDto: CreateProgramDto, @Request() req) {
     const user = req.user;
     const uid = user.uid;
-    const userRole = user.role;
     
+    let userRole = user?.role;
+    
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7); 
+      
+      try {
+        const payload = this.jwtService.decode(token);
+        
+        if (payload && payload.role) {
+          userRole = payload.role;
+        }
+      } catch (error) {
+       
+      }
+    } else {
+      userRole = 'viewer';
+    }
+
     const program = await this.programsService.create(createProgramDto, uid, userRole);
     return {
       success: true,
@@ -106,7 +126,7 @@ export class ProgramsController {
   async findAll(@Query() query: any, @Request() req) {
     const pagination: PaginationDto = {
       page: parseInt(query.page) || 1,
-      limit: parseInt(query.limit) || 10,
+      limit: parseInt(query.limit) || 20,
     };
 
     const programQuery: ProgramQueryDto = {
@@ -119,7 +139,31 @@ export class ProgramsController {
       sortOrder: query.sortOrder || 'DESC',
     };
 
-    const result = await this.programsService.findAll(programQuery, pagination, undefined, 'viewer');
+    const user = req.user;
+    const uid = user?.uid;
+    
+    let userRole = user?.role;
+    
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        const payload = this.jwtService.decode(token);
+        
+        if (payload && payload.role) {
+          userRole = payload.role;
+        }
+      } catch (error) {
+      }
+    }
+    
+    if (!userRole) {
+      userRole = 'viewer';
+    }
+
+    const result = await this.programsService.findAll(programQuery, pagination, uid, userRole);
     return {
       success: true,
       message: 'Programs retrieved successfully',
@@ -156,7 +200,31 @@ export class ProgramsController {
   @ApiResponse({ status: 200, description: 'Program retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Program not found' })
   async findOne(@Param('id') id: string, @Request() req) {
-    const program = await this.programsService.findOne(parseInt(id), undefined, 'viewer');
+    const user = req.user;
+    const uid = user?.uid;
+    
+    let userRole = user?.role;
+    
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        const payload = this.jwtService.decode(token);
+        
+        if (payload && payload.role) {
+          userRole = payload.role;
+        }
+      } catch (error) {
+      }
+    }
+    
+    if (!userRole) {
+      userRole = 'viewer';
+    }
+
+    const program = await this.programsService.findOne(parseInt(id), uid, userRole);
     return {
       success: true,
       message: 'Program retrieved successfully',
@@ -174,7 +242,30 @@ export class ProgramsController {
     @Body() updateProgramDto: UpdateProgramDto,
     @Request() req,
   ) {
-    const program = await this.programsService.update(parseInt(id), updateProgramDto, 'system', 'admin');
+    const user = req.user;
+    const uid = user?.uid;
+    
+    let userRole = user?.role;
+    
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        const payload = this.jwtService.decode(token);
+        
+        if (payload && payload.role) {
+          userRole = payload.role;
+        }
+      } catch (error) {
+      }
+    }
+    
+    if (!userRole) {
+      userRole = 'viewer';
+    }
+    const program = await this.programsService.update(parseInt(id), updateProgramDto, uid, userRole);
     return {
       success: true,
       message: 'Program updated successfully',

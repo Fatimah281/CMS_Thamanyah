@@ -112,7 +112,8 @@ export class ProgramFormComponent implements OnInit {
     });
 
     // Track form changes for edit mode
-    this.programForm.valueChanges.subscribe(() => {
+    this.programForm.valueChanges.subscribe((value) => {
+      console.log('Form value changed:', value);
       // This will help track when the form has been modified
       if (this.isEditMode) {
         // The form is now dirty (has changes)
@@ -135,11 +136,11 @@ export class ProgramFormComponent implements OnInit {
           this.onVideoSourceChange(videoSource);
           
           // Now patch the rest of the values
-          this.programForm.patchValue({
+          const formData = {
             title: program.title,
             description: program.description,
-            categoryId: program.categoryId,
-            languageId: program.languageId,
+            categoryId: program.categoryId ? String(program.categoryId) : '',
+            languageId: program.languageId ? String(program.languageId) : '',
             duration: program.duration,
             publishDate: this.formatDateForInput(program.publishDate),
             contentType: program.contentType || 'video',
@@ -148,7 +149,10 @@ export class ProgramFormComponent implements OnInit {
             thumbnailUrl: program.thumbnailUrl || '',
             status: program.status || 'draft',
             isActive: program.isActive !== false
-          });
+          };
+          
+          this.programForm.patchValue(formData);
+          
 
           if (program.youtubeThumbnail) {
             this.videoPreviewUrl = program.youtubeThumbnail;
@@ -157,7 +161,18 @@ export class ProgramFormComponent implements OnInit {
           // Mark form as pristine after loading
           this.programForm.markAsPristine();
           this.programForm.markAsUntouched();
+          
+          console.log('Form population completed');
+          
+          // Check form values after a short delay to see if they persist
+          setTimeout(() => {
+            console.log('Form values after delay:', this.programForm.value);
+          }, 500);
+        } else {
+          console.log('No program data received');
         }
+      }, error => {
+        console.error('Error loading program:', error);
       });
     }
   }

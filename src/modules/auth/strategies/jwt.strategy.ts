@@ -11,10 +11,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService: ConfigService,
     @Inject('FIRESTORE') private readonly db: Firestore,
   ) {
+    const jwtSecret = configService.get<string>('JWT_SECRET');
+    console.log('🔑 JWT Secret configured:', jwtSecret ? 'Yes' : 'No');
+    
+    if (!jwtSecret) {
+      console.warn('⚠️ JWT_SECRET not found in environment variables');
+    }
+    
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET'),
+      secretOrKey: jwtSecret,
     });
   }
 
