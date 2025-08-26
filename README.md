@@ -206,8 +206,6 @@ npm run test:with-dashboard
 
 For support and questions:
 - Create an issue on GitHub
-- Contact: [Your Contact Information]
-
 ## 📚 Documentation
 
 
